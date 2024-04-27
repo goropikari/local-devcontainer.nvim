@@ -1,5 +1,7 @@
 # local-devcontainer.nvim
 
+Launch devcontainer from neovim and connect the container via ssh.
+
 # Installation
 
 With [lazy.nvim](https://github.com/folke/lazy.nvim)
@@ -68,3 +70,7 @@ vim.api.nvim_create_user_command(
 )
 ```
 
+
+# TODO
+
+- [ ] When neovim supports vim's remote_foreground, stop creating terminal tabs and move to it.
