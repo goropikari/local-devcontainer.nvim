@@ -2,6 +2,8 @@
 
 Launch devcontainer from neovim and connect the container via ssh.
 
+![demo](docs/demo.gif)
+
 # Installation
 
 With [lazy.nvim](https://github.com/folke/lazy.nvim)
