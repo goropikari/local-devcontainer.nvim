@@ -4,7 +4,7 @@ local M = {
 
 local function default_cmd()
   if vim.fn.executable 'wezterm' == 1 then
-    return 'wezterm cli spawn --'
+    return '/usr/bin/wezterm cli spawn --'
   elseif vim.fn.executable 'wt.exe' then -- windows terminal
     return 'cmd.exe /c "wt.exe" -w 0 nt bash -c'
   end
@@ -26,7 +26,6 @@ local DEFAULT_CONFIG = {
     path = 'devcontainer',
     args = {
       '--workspace-folder=.',
-      -- '--mount type=bind,source=$HOME/.config/nvim,target=/home/vscode/.config/nvim',
       [[--additional-features='{"ghcr.io/goropikari/devcontainer-feature/neovim:1": {}, "ghcr.io/devcontainers/features/sshd:1": {}}']],
     },
   },
@@ -36,9 +35,7 @@ M.config = DEFAULT_CONFIG
 
 function M._define_command()
   local commands = {
-    -- { 'LCConnect',        require('local-devcontainer').connect_container },
-    -- { 'LCShowConfig',     M.show_config },
-    -- { 'LCForwardSSHSock', require('local-devcontainer').forward_ssh_sock },
+    -- { 'DevContainerUp',        require('local-devcontainer').up },
   }
   for _, v in ipairs(commands) do
     local cmd, action = v[1], v[2]
