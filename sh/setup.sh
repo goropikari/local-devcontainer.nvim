@@ -14,7 +14,14 @@ function _setup_ssh() {
   local public_key
   public_key=$1
   local ip_address
-  container_id=$(devcontainer up --workspace-folder=. --skip-post-create --skip-non-blocking-commands --skip-post-attach | tail -n1 | jq -r .containerId)
+  local up_result
+  # container_id=$(devcontainer up --workspace-folder=. --skip-post-create --skip-non-blocking-commands --skip-post-attach | tail -n1 | jq -r .containerId)
+  up_result=$(devcontainer up --workspace-folder=. --skip-post-create --skip-non-blocking-commands --skip-post-attach | tail -n1)
+  container_id=$(echo $up_result | jq -r .containerId)
+  if [[ "$(echo $up_result | jq -r .outcome)" = "error" ]]; then
+    echo $up_result
+    return 1
+  fi
   container_hostname=$(docker inspect $container_id --format='{{.Config.Hostname}}')
   ip_address=$(docker inspect $container_hostname --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
   devcontainer exec --workspace-folder=. mkdir -p /home/vscode/.ssh
@@ -51,10 +58,18 @@ function _forward_ssh_port() {
   sleep 0.5
 
   if test -n "$term_cmd"; then
-    echo $term_cmd ssh -t -i $secret_key_path -o NoHostAuthenticationForLocalhost=yes -o UserKnownHostsFile=/dev/null -o GlobalKnownHostsFile=/dev/null -p $port $user@$ip_address
-    $term_cmd ssh -t -i $secret_key_path -o NoHostAuthenticationForLocalhost=yes -o UserKnownHostsFile=/dev/null -o GlobalKnownHostsFile=/dev/null -p $port $user@$ip_address
+    if [[ -n "$(type -p wt.exe)" ]]; then
+      $term_cmd "source $HOME/.keychain/$(hostname)-sh && ssh -t -i $secret_key_path -o NoHostAuthenticationForLocalhost=yes -o UserKnownHostsFile=/dev/null -o GlobalKnownHostsFile=/dev/null -p $port $user@$ip_address"
+    else
+      echo $term_cmd ssh -t -i $secret_key_path -o NoHostAuthenticationForLocalhost=yes -o UserKnownHostsFile=/dev/null -o GlobalKnownHostsFile=/dev/null -p $port $user@$ip_address
+      $term_cmd ssh -t -i $secret_key_path -o NoHostAuthenticationForLocalhost=yes -o UserKnownHostsFile=/dev/null -o GlobalKnownHostsFile=/dev/null -p $port $user@$ip_address
+    fi
   fi
 }
 
 ip_address=$(_setup_ssh $public_key_path)
+if [[ "$?" != "0" ]]; then
+  exit 1
+fi
+
 _forward_ssh_port $ip_address $ssh_port $secret_key_path $user "$term_cmd"
