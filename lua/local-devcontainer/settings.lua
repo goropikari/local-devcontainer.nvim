@@ -48,7 +48,6 @@ function M._update_setting(opts)
     local v2 = opts[key]
     if v2 then
       if type(v2) == 'table' then
-        print(vim.inspect(v2))
         M.config[key] = vim.fn.extend(value, v2)
       else
         M.config[key] = v2
