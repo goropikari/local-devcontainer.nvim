@@ -1,12 +1,12 @@
-local termitary = require 'termitary-mod'
+local termitary = require('termitary-mod')
 
 local M = {}
 
-local settings = require 'local-devcontainer.settings'
+local settings = require('local-devcontainer.settings')
 
 local function script_path()
   local str = debug.getinfo(2, 'S').source:sub(2)
-  return str:match '(.*/)'
+  return str:match('(.*/)')
 end
 
 function M._devcontainer_up()
@@ -23,7 +23,7 @@ function M._devcontainer_up()
 end
 
 function M._setup_ssh()
-  termitary.type {
+  termitary.type({
     'bash',
     script_path() .. '../../sh/setup.sh',
     settings.config.ssh.public_key_path,
@@ -31,7 +31,7 @@ function M._setup_ssh()
     settings.config.ssh.port,
     settings.config.ssh.user,
     '"' .. settings.config.cmd .. '"',
-  }
+  })
 
   if settings.config.cmd == '' then
     vim.notify(vim.fn.join({

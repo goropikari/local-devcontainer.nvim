@@ -1,6 +1,6 @@
 local M = {}
 
-local settings = require 'local-devcontainer.settings'
+local settings = require('local-devcontainer.settings')
 
 function M.setup(opts)
   settings._update_setting(opts)

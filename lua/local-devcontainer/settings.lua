@@ -3,9 +3,9 @@ local M = {
 }
 
 local function default_cmd()
-  if vim.fn.executable 'wezterm' == 1 then
+  if vim.fn.executable('wezterm') == 1 then
     return '/usr/bin/wezterm cli spawn --'
-  elseif vim.fn.executable 'wt.exe' then -- windows terminal
+  elseif vim.fn.executable('wt.exe') then -- windows terminal
     return 'cmd.exe /c "wt.exe" -w 0 nt bash -c'
   end
   return ''
