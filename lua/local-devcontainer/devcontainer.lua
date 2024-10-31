@@ -2,17 +2,17 @@ local termitary = require 'termitary-mod'
 
 local M = {}
 
-local cfg = require('local-devcontainer.settings').config
+local settings = require 'local-devcontainer.settings'
 
 local function script_path()
-  local str = debug.getinfo(2, "S").source:sub(2)
-  return str:match("(.*/)")
+  local str = debug.getinfo(2, 'S').source:sub(2)
+  return str:match '(.*/)'
 end
 
 function M._devcontainer_up()
-  local args = cfg.devcontainer.args or {}
+  local args = settings.config.devcontainer.args or {}
   local cmd = {
-    cfg.devcontainer.path,
+    settings.config.devcontainer.path,
     'up',
   }
 
@@ -26,23 +26,23 @@ function M._setup_ssh()
   termitary.type {
     'bash',
     script_path() .. '../../sh/setup.sh',
-    cfg.ssh.public_key_path,
-    cfg.ssh.secret_key_path,
-    cfg.ssh.port,
-    cfg.ssh.user,
-    '"' .. cfg.cmd .. '"',
+    settings.config.ssh.public_key_path,
+    settings.config.ssh.secret_key_path,
+    settings.config.ssh.port,
+    settings.config.ssh.user,
+    '"' .. settings.config.cmd .. '"',
   }
 
-  if cfg.cmd == '' then
-    require('osc52').copy(vim.fn.join({
+  if settings.config.cmd == '' then
+    vim.notify(vim.fn.join({
       'ssh -t -i',
-      cfg.ssh.secret_key_path,
+      settings.config.ssh.secret_key_path,
       '-o NoHostAuthenticationForLocalhost=yes',
       '-o UserKnownHostsFile=/dev/null',
       '-o GlobalKnownHostsFile=/dev/null',
       '-p',
-      cfg.ssh.port,
-      cfg.ssh.user .. '@' .. cfg.ssh.host,
+      settings.config.ssh.port,
+      settings.config.ssh.user .. '@' .. settings.config.ssh.host,
     }, ' '))
   end
 end

@@ -11,8 +11,8 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim)
 ```lua
 {
   'goropikari/local-devcontainer.nvim',
+  enabled = vim.fn.executable('devcontainer') == 1,
   dependencies = {
-    'ojroques/nvim-osc52',
     'goropikari/termitary-mod.nvim',
   },
   opts = {

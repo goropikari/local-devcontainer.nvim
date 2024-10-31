@@ -31,7 +31,6 @@ local DEFAULT_CONFIG = {
   },
   cmd = default_cmd(),
 }
-M.config = DEFAULT_CONFIG
 
 function M._define_command()
   local commands = {
@@ -44,20 +43,11 @@ function M._define_command()
 end
 
 function M._update_setting(opts)
-  for key, value in pairs(DEFAULT_CONFIG) do
-    local v2 = opts[key]
-    if v2 then
-      if type(v2) == 'table' then
-        M.config[key] = vim.fn.extend(value, v2)
-      else
-        M.config[key] = v2
-      end
-    end
-  end
+  M.config = vim.tbl_extend('force', DEFAULT_CONFIG, opts or {})
 end
 
 function M.show_config()
-  print(vim.inspect(M.config))
+  vim.print(M.config)
 end
 
 return M
