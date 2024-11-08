@@ -12,9 +12,6 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim)
 {
   'goropikari/local-devcontainer.nvim',
   enabled = vim.fn.executable('devcontainer') == 1,
-  dependencies = {
-    'goropikari/termitary-mod.nvim',
-  },
   opts = {
     -- some opts
   },
@@ -43,9 +40,6 @@ require('local-devcontainer').setup({
     port = 2222,
     public_key_path = '~/.ssh/id_rsa.pub',
     secret_key_path = '~/.ssh/id_rsa',
-  },
-  neovim = {
-    remote_path = '/opt/nvim/squashfs-root/usr/bin/nvim',
   },
   devcontainer = {
     path = 'devcontainer',
