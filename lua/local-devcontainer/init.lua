@@ -51,16 +51,19 @@ local function _setup_auth_sock()
   local sock_dir = global_internal_config.ssh.host_sock_dir
   vim.fn.mkdir(sock_dir, 'p')
 
-  vim.system({ 'ls', get_host_sock_path() }, {}, function(obj)
-    if obj.code ~= 0 then
-      vim.system({
-        'socat',
-        os.getenv('SSH_AUTH_SOCK'),
-        'unix-listen:' .. get_host_sock_path() .. ',fork',
-      })
-    end
-  end)
-  vim.wait(100) -- 100 msec
+  vim
+    .system({ 'ls', get_host_sock_path() }, {}, function(obj)
+      if obj.code ~= 0 then
+        vim
+          .system({
+            'socat',
+            os.getenv('SSH_AUTH_SOCK'),
+            'unix-listen:' .. get_host_sock_path() .. ',fork',
+          })
+          :wait()
+      end
+    end)
+    :wait()
 end
 
 local function _devcontainer_up()
@@ -72,7 +75,7 @@ local function _devcontainer_up()
     global_internal_config.devcontainer.path,
     'up',
     '--mount',
-    'type=bind,source=' .. host_sock_dir .. ',target=' .. remote_sock_dir,
+    'type=bind,source=' .. get_host_sock_path() .. ',target=' .. get_remote_sock_path(),
     '--remote-env',
     'SSH_AUTH_SOCK=' .. get_remote_sock_path(),
   }
