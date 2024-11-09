@@ -99,7 +99,7 @@ local function _devcontainer_up()
     end,
   }, function(obj)
     if obj.code ~= 0 then
-      vim.notify('exit code: ' .. tostring(obj.code), vim.log.levels.ERROR)
+      vim.notify(vim.inspect(obj), vim.log.levels.ERROR)
       return
     end
     vim.schedule(function()
@@ -136,7 +136,7 @@ local function _devcontainer_up()
           'echo export SSH_AUTH_SOCK=' .. get_remote_sock_path() .. '>> /etc/bash.bashrc',
         } or { 'echo', 'foo' }, {}, function(obj2)
           if obj2.code ~= 0 then
-            vim.notify('exit code: ' .. tostring(obj2.code), vim.log.levels.ERROR)
+            vim.notify(vim.inspect(obj2), vim.log.levels.ERROR)
             return
           end
           vim.system(
@@ -153,7 +153,7 @@ local function _devcontainer_up()
             {},
             function(obj3)
               if obj3.code ~= 0 then
-                vim.notify('exit code: ' .. tostring(obj3.code), vim.log.levels.ERROR)
+                vim.notify(vim.inspect(obj3), vim.log.levels.ERROR)
                 return
               end
             end
