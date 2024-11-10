@@ -84,7 +84,7 @@ local function _setup_auth_sock()
     :wait()
 end
 
-local function _devcontainer_up()
+local function _devcontainer_up(opts)
   local args = global_internal_config.devcontainer.args or {}
   local host_sock_dir = global_internal_config.ssh.host_sock_dir
   local remote_sock_dir = global_internal_config.ssh.remote_sock_dir
@@ -97,6 +97,10 @@ local function _devcontainer_up()
     'SSH_AUTH_SOCK=' .. get_remote_sock_path(),
   }
   vim.list_extend(cmd, args)
+
+  if opts.remove_existing_container then
+    table.insert(cmd, '--remove-existing-container')
+  end
 
   state.winid = vim.api.nvim_open_win(state.bufnr, false, {
     split = 'below',
@@ -181,9 +185,9 @@ local function _devcontainer_up()
   end)
 end
 
-local function devcontainer_up()
+local function devcontainer_up(opts)
   _setup_auth_sock()
-  _devcontainer_up()
+  _devcontainer_up(opts)
 end
 
 function M.setup(opts)
