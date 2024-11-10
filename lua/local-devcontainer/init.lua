@@ -40,7 +40,7 @@ local state = {
 
 ---@param bufnr number
 ---@param winid number
-function move_bottom(winid, bufnr)
+local function move_bottom(winid, bufnr)
   if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
     local last_num = vim.api.nvim_buf_line_count(bufnr)
     vim.api.nvim_win_set_cursor(winid, { last_num, 0 })
@@ -53,27 +53,46 @@ local function _setup_auth_sock()
 
   vim
     .system({ 'ls', get_host_sock_path() }, {}, function(obj)
-      if obj.code ~= 0 then
-        vim.system({
-          'socat',
-          os.getenv('SSH_AUTH_SOCK'),
-          'unix-listen:' .. get_host_sock_path() .. ',fork',
-        })
-      end
+      vim.schedule(function()
+        local make_socket = obj.code ~= 0
+        local remove_socket = false
+
+        vim
+          .system({
+            'bash',
+            '-c',
+            [[ps aux | grep -E "socat.*local-devcontainer\.nvim/ssh/ssh_auth\.sock"]],
+          }, {}, function(obj_grep)
+            if obj_grep.code ~= 0 then
+              remove_socket = true
+              make_socket = true
+            end
+          end)
+          :wait()
+
+        if make_socket or remove_socket then
+          vim.system({ 'rm', '-f', get_host_sock_path() }):wait()
+          vim.system({
+            'socat',
+            os.getenv('SSH_AUTH_SOCK'),
+            'unix-listen:' .. get_host_sock_path() .. ',fork',
+          })
+        end
+        vim.wait(100)
+      end)
     end)
     :wait()
 end
 
 local function _devcontainer_up()
+  local args = global_internal_config.devcontainer.args or {}
   local host_sock_dir = global_internal_config.ssh.host_sock_dir
   local remote_sock_dir = global_internal_config.ssh.remote_sock_dir
-
-  local args = global_internal_config.devcontainer.args or {}
   local cmd = {
     global_internal_config.devcontainer.path,
     'up',
     '--mount',
-    'type=bind,source=' .. get_host_sock_path() .. ',target=' .. get_remote_sock_path(),
+    'type=bind,source=' .. host_sock_dir .. ',target=' .. remote_sock_dir,
     '--remote-env',
     'SSH_AUTH_SOCK=' .. get_remote_sock_path(),
   }
