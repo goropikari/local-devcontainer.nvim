@@ -54,13 +54,11 @@ local function _setup_auth_sock()
   vim
     .system({ 'ls', get_host_sock_path() }, {}, function(obj)
       if obj.code ~= 0 then
-        vim
-          .system({
-            'socat',
-            os.getenv('SSH_AUTH_SOCK'),
-            'unix-listen:' .. get_host_sock_path() .. ',fork',
-          })
-          :wait()
+        vim.system({
+          'socat',
+          os.getenv('SSH_AUTH_SOCK'),
+          'unix-listen:' .. get_host_sock_path() .. ',fork',
+        })
       end
     end)
     :wait()
