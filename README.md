@@ -48,7 +48,7 @@ lua require('local-devcontainer').up()
 ForwardAgent yes
 
 Host devc
-    ProxyCommand /usr/bin/nc $(docker inspect devc-$(basename $(pwd)) --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}') %p
+    ProxyCommand /usr/bin/nc $(docker inspect $(docker inspect devc-$(basename $(pwd)) --format='{{.Config.Hostname}}') --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}') %p
     Port 2222
     User vscode
     NoHostAuthenticationForLocalhost yes

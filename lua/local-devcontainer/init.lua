@@ -40,6 +40,25 @@ local function logging(data)
   end)
 end
 
+local function read_configuration()
+  local obj = vim.system({ 'devcontainer', 'read-configuration', '--workspace-folder=.' }):wait()
+  if obj.code ~= 0 then
+    vim.notify(obj.stderr)
+    return nil
+  end
+  return vim.json.decode(obj.stdout)
+end
+
+local function read_override_config()
+  local file = io.open(state.override_config_path, 'r')
+  if file ~= nil then
+    local contents = file:read('*a')
+    file:close()
+    return vim.json.decode(contents)
+  end
+  return {}
+end
+
 function M.setup(opts)
   config = vim.tbl_deep_extend('force', default_config, opts or {})
   config.ssh.public_key = vim.fn.expand(config.ssh.public_key)
@@ -147,6 +166,24 @@ local function up(opts)
   local cmd = split('devcontainer up --workspace-folder=. --override-config ' .. state.unite_config_path)
   if opts.restart then
     table.insert(cmd, '--remove-existing-container')
+  end
+
+  local cfg = read_configuration()
+  if vim.tbl_get(cfg, 'configuration', 'dockerComposeFile') then
+    local override_config_json = read_override_config()
+    local mounts = override_config_json.mounts
+    if mounts then
+      for _, value in pairs(mounts) do
+        vim.list_extend(cmd, {
+          '--mount',
+          vim.fn.join({
+            'type=' .. value.type .. ',',
+            'source=' .. value.source .. ',',
+            'target=' .. value.target,
+          }, ''),
+        })
+      end
+    end
   end
 
   vim.system(cmd, {
