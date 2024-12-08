@@ -19,6 +19,15 @@ local function split(s)
   return vim.split(s, ' ')
 end
 
+---@param bufnr number
+---@param winid number
+local function move_bottom(winid, bufnr)
+  if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
+    local last_num = vim.api.nvim_buf_line_count(bufnr)
+    vim.api.nvim_win_set_cursor(winid, { last_num, 0 })
+  end
+end
+
 local function get_config_dir()
   return vim.fn.stdpath('data') .. '/local-devcontainer.nvim/' .. vim.fn.sha256(vim.fn.getcwd())
 end
@@ -27,6 +36,7 @@ end
 local function logging(data)
   vim.schedule(function()
     vim.api.nvim_buf_set_lines(state.bufnr, -1, -1, false, vim.split(data, '\n'))
+    move_bottom(state.winid, state.bufnr)
   end)
 end
 
