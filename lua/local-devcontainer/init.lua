@@ -2,203 +2,191 @@ local M = {}
 
 local default_config = {
   ssh = {
-    host_sock_dir = vim.fn.stdpath('data') .. '/local-devcontainer.nvim/ssh',
-    remote_sock_dir = '/tmp/local-devcontainer/ssh',
-    sock_file_name = 'ssh_auth.sock',
+    public_key = '~/.ssh/id_rsa.pub',
   },
-  devcontainer = {
-    path = 'devcontainer',
-    args = {
-      '--workspace-folder=.',
-      [[--additional-features='{"ghcr.io/goropikari/devcontainer-feature/neovim:1": {}}]],
-    },
-  },
-  cmd = (function()
-    if vim.fn.has('wsl') == 1 then
-      return 'cmd.exe /c "wt.exe" -w 0 nt bash -c'
-    else
-      return 'alacritty -e'
-    end
-  end)(),
 }
-local global_internal_config = {}
-
-local function get_remote_sock_path()
-  local ssh = global_internal_config.ssh
-  return ssh.remote_sock_dir .. '/' .. ssh.sock_file_name
-end
-
-local function get_host_sock_path()
-  local ssh = global_internal_config.ssh
-  return ssh.host_sock_dir .. '/' .. ssh.sock_file_name
-end
+local config = {}
 
 local state = {
   bufnr = -1,
   winid = -1,
+  up_out = nil,
+  container_id = '',
+  config_dir = '',
 }
 
----@param bufnr number
----@param winid number
-local function move_bottom(winid, bufnr)
-  if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
-    local last_num = vim.api.nvim_buf_line_count(bufnr)
-    vim.api.nvim_win_set_cursor(winid, { last_num, 0 })
-  end
+local function split(s)
+  return vim.split(s, ' ')
 end
 
-local function _setup_auth_sock()
-  local sock_dir = global_internal_config.ssh.host_sock_dir
-  vim.fn.mkdir(sock_dir, 'p')
-
-  vim
-    .system({ 'ls', get_host_sock_path() }, {}, function(obj)
-      vim.schedule(function()
-        local make_socket = obj.code ~= 0
-        local remove_socket = false
-
-        vim
-          .system({
-            'bash',
-            '-c',
-            [[ps aux | grep -E "socat.*local-devcontainer\.nvim/ssh/ssh_auth\.sock"]],
-          }, {}, function(obj_grep)
-            if obj_grep.code ~= 0 then
-              remove_socket = true
-              make_socket = true
-            end
-          end)
-          :wait()
-
-        if make_socket or remove_socket then
-          vim.system({ 'rm', '-f', get_host_sock_path() }):wait()
-          vim.system({
-            'socat',
-            os.getenv('SSH_AUTH_SOCK'),
-            'unix-listen:' .. get_host_sock_path() .. ',fork',
-          })
-        end
-        vim.wait(100)
-      end)
-    end)
-    :wait()
+local function get_config_dir()
+  return vim.fn.stdpath('data') .. '/local-devcontainer.nvim/' .. vim.fn.sha256(vim.fn.getcwd())
 end
 
-local function _devcontainer_up(opts)
-  local args = global_internal_config.devcontainer.args or {}
-  local host_sock_dir = global_internal_config.ssh.host_sock_dir
-  local remote_sock_dir = global_internal_config.ssh.remote_sock_dir
-  local cmd = {
-    global_internal_config.devcontainer.path,
-    'up',
-    '--mount',
-    'type=bind,source=' .. host_sock_dir .. ',target=' .. remote_sock_dir,
-    '--remote-env',
-    'SSH_AUTH_SOCK=' .. get_remote_sock_path(),
-  }
-  vim.list_extend(cmd, args)
-
-  if opts.remove_existing_container then
-    table.insert(cmd, '--remove-existing-container')
-  end
-
-  state.winid = vim.api.nvim_open_win(state.bufnr, false, {
-    split = 'below',
-    height = math.floor(vim.o.lines / 4),
-  })
-
-  vim.system(cmd, {
-    stderr = function(_, data)
-      -- progress of devcontainer setup
-      vim.schedule(function()
-        if data then
-          data = string.gsub(data, '\r\n', '\n')
-          vim.api.nvim_buf_set_lines(state.bufnr, -1, -1, false, vim.fn.split(data, '\n'))
-          move_bottom(state.winid, state.bufnr)
-        end
-      end)
-    end,
-  }, function(obj)
-    if obj.code ~= 0 then
-      vim.notify(vim.inspect(obj), vim.log.levels.ERROR)
-      return
-    end
-    vim.schedule(function()
-      local stdout = obj.stdout
-      if stdout then
-        local res = vim.json.decode(stdout)
-        vim.api.nvim_buf_set_lines(state.bufnr, -1, -1, false, vim.fn.split(vim.inspect(res), '\n'))
-        move_bottom(state.winid, state.bufnr)
-
-        if res.outcome ~= 'success' then
-          return
-        end
-        local containerID = res.containerId
-
-        local ret = vim
-          .system({
-            'docker',
-            'exec',
-            containerID,
-            'grep',
-            'SSH_AUTH_SOCK',
-            '/etc/bash.bashrc',
-          }, {})
-          :wait()
-
-        vim.system(ret.code ~= 0 and {
-          'docker',
-          'exec',
-          '-u',
-          'root',
-          containerID,
-          'bash',
-          '-c',
-          'echo export SSH_AUTH_SOCK=' .. get_remote_sock_path() .. '>> /etc/bash.bashrc',
-        } or { 'echo', 'foo' }, {}, function(obj2)
-          if obj2.code ~= 0 then
-            vim.notify(vim.inspect(obj2), vim.log.levels.ERROR)
-            return
-          end
-          vim.system(
-            vim
-              .iter({
-                vim.split(global_internal_config.cmd, ' '),
-                'devcontainer',
-                'exec',
-                '--workspace-folder=.',
-                'bash',
-              })
-              :flatten()
-              :totable(),
-            {},
-            function(obj3)
-              if obj3.code ~= 0 then
-                vim.notify(vim.inspect(obj3), vim.log.levels.ERROR)
-                return
-              end
-            end
-          )
-        end)
-      end
-    end)
+---@param data string
+local function logging(data)
+  vim.schedule(function()
+    vim.api.nvim_buf_set_lines(state.bufnr, -1, -1, false, vim.split(data, '\n'))
   end)
 end
 
-local function devcontainer_up(opts)
-  _setup_auth_sock()
-  _devcontainer_up(opts)
-end
-
 function M.setup(opts)
-  global_internal_config = vim.tbl_deep_extend('force', default_config, opts or {})
-  state.bufnr = vim.api.nvim_create_buf(false, true)
+  config = vim.tbl_deep_extend('force', default_config, opts or {})
+  config.ssh.public_key = vim.fn.expand(config.ssh.public_key)
+
+  state.config_dir = get_config_dir()
+  state.override_config_path = get_config_dir() .. '/override_config.jsonc'
+  state.unite_config_path = get_config_dir() .. '/unite_config.jsonc'
 end
 
-function M.show_config()
-  vim.print(global_internal_config)
+local function setup_devcontainer_config()
+  vim.fn.mkdir(state.config_dir, 'p')
+  vim.system({ 'touch', state.override_config_path }):wait()
+  vim.system({
+    'unitejson',
+    '.devcontainer/devcontainer.json',
+    state.override_config_path,
+  }, {}, function(out)
+    if out.code ~= 0 then
+      logging(out.stderr)
+      return
+    end
+    local file = io.open(state.unite_config_path, 'w')
+    if file ~= nil then
+      file:write('// DO NOT EDIT. THIS FILE IS GENERATED BY local-devcontainer.nvim\n')
+      file:write(out.stdout)
+      file:close()
+    end
+  end)
 end
 
-M.up = devcontainer_up
+local function setup_ssh()
+  -- stylua: ignore
+  vim.system(
+    split('devcontainer exec --workspace-folder=. mkdir -p /home/vscode/.ssh'),
+    {},
+    function(out1)
+      if out1.code ~= 0 then
+        logging(out1.stderr)
+        return
+      end
+      logging(out1.stdout)
+      vim.system(
+        {
+          'docker',
+          'cp',
+          config.ssh.public_key,
+          state.container_id .. ':/home/vscode/.ssh/authorized_keys',
+        },
+        {},
+        function(out2)
+          if out2.code ~= 0 then
+            logging(out2.stderr)
+            return
+          end
+          logging(out2.stdout)
+          vim.system(
+            {
+              'bash',
+              '-c',
+              "devcontainer exec --workspace-folder=. bash -c 'chmod 644 /home/vscode/.ssh/authorized_keys'",
+            },
+            {},
+            function(out3)
+              if out3.code ~= 0 then
+                logging(out3.stderr)
+                return
+              end
+              logging(out3.stdout)
+              vim.system(
+                {
+                  'bash',
+                  '-c',
+                  "devcontainer exec --workspace-folder=. bash -c 'chmod 700 /home/vscode/.ssh'",
+                },
+                {},
+                function(out4)
+                  if out4.code ~= 0 then
+                    logging(out4.stderr)
+                    return
+                  end
+                  logging(out4.stdout)
+                  vim.system(
+                    {
+                      'docker',
+                      'rename',
+                      state.container_id,
+                      'devc-' .. vim.fn.fnamemodify(vim.uv.cwd(), ':t'),
+                    }
+                  )
+                end
+              )
+            end
+          )
+        end
+      )
+  end)
+end
+
+local function up(opts)
+  state.bufnr = vim.api.nvim_create_buf(true, true)
+  state.winid = vim.api.nvim_open_win(state.bufnr, false, { split = 'below', style = 'minimal' })
+
+  opts = opts or {}
+  setup_devcontainer_config()
+  local cmd = split('devcontainer up --workspace-folder=. --override-config ' .. state.unite_config_path)
+  if opts.restart then
+    table.insert(cmd, '--remove-existing-container')
+  end
+
+  vim.system(cmd, {
+    stderr = function(err, data)
+      if data ~= nil then
+        logging(data)
+      end
+    end,
+  }, function(obj)
+    if obj.code ~= 0 then
+      logging(obj.stdout)
+      logging(obj.stderr)
+      return
+    end
+    local out = vim.json.decode(obj.stdout)
+    logging(obj.stdout)
+    state.up_out = out
+    state.container_id = out.containerId
+    setup_ssh()
+  end)
+end
+
+local function show()
+  vim.print(vim.inspect(config))
+  vim.print(vim.inspect(state))
+end
+
+local function open_unite_config()
+  vim.cmd(':e ' .. state.unite_config_path)
+end
+
+local function open_override_config()
+  vim.fn.mkdir(state.config_dir, 'p')
+  vim.cmd(':e ' .. state.override_config_path)
+end
+
+M.up = up
+M.show = show
+M.open_unite_config = open_unite_config
+
+vim.api.nvim_create_user_command('DevContainerUp', function(opts)
+  local args = split(opts.args)
+  vim.print(args)
+  local restart = #args ~= 0 and args[1] == 'restart' or false
+  up({
+    restart = restart,
+  })
+end, {
+  nargs = '?',
+})
+vim.api.nvim_create_user_command('DevContainerEditOverrideConfig', open_override_config, {})
 
 return M

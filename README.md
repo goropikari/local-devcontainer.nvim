@@ -1,8 +1,6 @@
 # local-devcontainer.nvim
 
-Launch devcontainer from neovim and connect the container via ssh.
-
-![demo](docs/demo.gif)
+Launch devcontainer from neovim.
 
 # Installation
 
@@ -19,12 +17,11 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim)
 ```
 
 # Required
-devcontainer cli, socat are required.
+devcontainer cli are required.
 
 ```bash
 npm install -g @devcontainers/cli
-
-sudo apt-get install -y socat
+go install github.com/goropikari/unitejson@latest
 ```
 
 
@@ -35,20 +32,8 @@ default parameter
 ```lua
 require('local-devcontainer').setup({
   ssh = {
-    user = 'vscode',
-    host = 'localhost',
-    port = 2222,
     public_key_path = '~/.ssh/id_rsa.pub',
-    secret_key_path = '~/.ssh/id_rsa',
   },
-  devcontainer = {
-    path = 'devcontainer',
-    args = {
-      '--workspace-folder=.',
-      [[--additional-features='{"ghcr.io/goropikari/devcontainer-feature/neovim:1": {}, "ghcr.io/devcontainers/features/sshd:1": {}}']],
-    }
-  },
-  cmd = 'wezterm cli spawn --', -- windows: 'cmd.exe /c "wt.exe" -w 0 nt bash -c'
 })
 ```
 
@@ -58,14 +43,19 @@ require('local-devcontainer').setup({
 lua require('local-devcontainer').up()
 ```
 
-```lua
-vim.api.nvim_create_user_command(
-  "DevContainerUp",
-  require('local-devcontainer').up,
-  {}
-)
+`~/.ssh/config`
 ```
+ForwardAgent yes
 
+Host devc
+    ProxyCommand /usr/bin/nc $(docker inspect devc-$(basename $(pwd)) --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}') %p
+    Port 2222
+    User vscode
+    NoHostAuthenticationForLocalhost yes
+    UserKnownHostsFile /dev/null
+    GlobalKnownHostsFile /dev/null
+    StrictHostKeyChecking no
+```
 
 # TODO
 
