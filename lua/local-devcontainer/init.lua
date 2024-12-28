@@ -56,7 +56,7 @@ local function setup_devcontainer_config()
     'unitejson',
     '.devcontainer/devcontainer.json',
     state.override_config_path,
-  }, {}, function(out)
+  }, { text = true }, function(out)
     if out.code ~= 0 then
       logging(out.stderr)
       return
@@ -74,7 +74,7 @@ local function setup_ssh()
   -- stylua: ignore
   vim.system(
     split('devcontainer exec --workspace-folder=. mkdir -p /home/vscode/.ssh'),
-    {},
+    { text=true },
     function(out1)
       if out1.code ~= 0 then
         logging(out1.stderr)
@@ -88,7 +88,7 @@ local function setup_ssh()
           config.ssh.public_key,
           state.container_id .. ':/home/vscode/.ssh/authorized_keys',
         },
-        {},
+        { text=true },
         function(out2)
           if out2.code ~= 0 then
             logging(out2.stderr)
@@ -101,7 +101,7 @@ local function setup_ssh()
               '-c',
               "devcontainer exec --workspace-folder=. bash -c 'chmod 644 /home/vscode/.ssh/authorized_keys'",
             },
-            {},
+            { text= true },
             function(out3)
               if out3.code ~= 0 then
                 logging(out3.stderr)
@@ -114,7 +114,7 @@ local function setup_ssh()
                   '-c',
                   "devcontainer exec --workspace-folder=. bash -c 'chmod 700 /home/vscode/.ssh'",
                 },
-                {},
+                { text = true },
                 function(out4)
                   if out4.code ~= 0 then
                     logging(out4.stderr)
@@ -150,6 +150,7 @@ local function up(opts)
   end
 
   vim.system(cmd, {
+    text = true,
     ---@diagnostic disable-next-line
     stderr = function(err, data)
       if data ~= nil then
