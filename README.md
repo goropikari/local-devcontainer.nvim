@@ -13,6 +13,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim)
   opts = {
     -- some opts
   },
+  build = 'make setup',
 }
 ```
 

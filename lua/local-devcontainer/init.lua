@@ -1,3 +1,5 @@
+local tmpl = require('local-devcontainer.template')
+
 local M = {}
 
 local default_config = {
@@ -185,6 +187,20 @@ local function open_override_config()
   vim.cmd(':e ' .. state.override_config_path)
 end
 
+function M.add_configuration()
+  tmpl.select_devcontainer_template(function(choice)
+    local id = choice.id
+    vim.system({
+      'devcontainer',
+      'templates',
+      'apply',
+      '--template-id',
+      'ghcr.io/devcontainers/templates/' .. id,
+      '--workspace-folder=.',
+    })
+  end)
+end
+
 M.up = up
 M.show = show
 M.open_unite_config = open_unite_config
@@ -200,5 +216,6 @@ end, {
   nargs = '?',
 })
 vim.api.nvim_create_user_command('DevContainerEditOverrideConfig', open_override_config, {})
+vim.api.nvim_create_user_command('DevContainerAddConfiguration', M.add_configuration, {})
 
 return M
